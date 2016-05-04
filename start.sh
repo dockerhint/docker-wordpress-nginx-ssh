@@ -35,13 +35,21 @@ if [ ! -f /usr/share/nginx/www/wp-config.php ]; then
   unzip -o nginx-helper.*.zip -d /usr/share/nginx/www/wp-content/plugins
   chown -R www-data:www-data /usr/share/nginx/www/wp-content/plugins/nginx-helper
 
+  # Download wp-ffpc
+  curl -O `curl -i -s http://wordpress.org/plugins/wp-ffpc/ | egrep -o "http://downloads.wordpress.org/plugin/[^']+"`
+  unzip wp-ffpc.*.zip -d /usr/share/nginx/www/wp-content/plugins
+  chown -R wordpress:www-data /usr/share/nginx/www/wp-content/plugins
+
+  sed -i -e $"s/define('WP_DEBUG', false);/define('WP_DEBUG', false);\ndefine('WP_CACHE', true);\ndefine('FS_METHOD', 'direct');/" /usr/share/nginx/www/wp-config.php
+
+
   # Activate nginx plugin and set up pretty permalink structure once logged in
   cat << ENDL >> /usr/share/nginx/www/wp-config.php
 \$plugins = get_option( 'active_plugins' );
 if ( count( \$plugins ) === 0 ) {
   require_once(ABSPATH .'/wp-admin/includes/plugin.php');
   \$wp_rewrite->set_permalink_structure( '/%postname%/' );
-  \$pluginsToActivate = array( 'nginx-helper/nginx-helper.php' );
+  \$pluginsToActivate = array( 'nginx-helper/nginx-helper.php' , 'wp-ffpc/wp-ffpc.php');
   foreach ( \$pluginsToActivate as \$plugin ) {
     if ( !in_array( \$plugin, \$plugins ) ) {
       activate_plugin( '/usr/share/nginx/www/wp-content/plugins/' . \$plugin );
@@ -59,4 +67,5 @@ ENDL
 fi
 
 # start all the services
+service memcached start
 /usr/local/bin/supervisord -n -c /etc/supervisord.conf
